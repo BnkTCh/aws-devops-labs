@@ -1,0 +1,65 @@
+#!/bin/bash
+# Guía para crear el Agent Space de AWS DevOps Agent.
+#
+# IMPORTANTE (aprendido ejecutando el lab):
+# El Agent Space NO se crea por CloudFormation. Intentar crear el rol IAM con el
+# principal "devops-agent.amazonaws.com" FALLA con:
+#   "Invalid principal in policy: SERVICE:devops-agent.amazonaws.com"
+# porque el namespace real del servicio en IAM es "aidevops", no "devops-agent".
+#
+# La forma correcta y recomendada por AWS es crear el Agent Space desde la CONSOLA,
+# dejando que AWS auto-cree los roles IAM (con el principal y permisos correctos).
+
+REGION="us-east-1"
+
+echo "========================================="
+echo "  Crear Agent Space - AWS DevOps Agent"
+echo "========================================="
+echo ""
+echo "Este paso se hace en la CONSOLA (no por CloudFormation)."
+echo "AWS auto-crea los roles IAM por ti."
+echo ""
+echo "Sigue estos pasos:"
+echo ""
+echo "  (Nombres en la consola en español / en inglés)"
+echo ""
+echo "  1. Abre la consola de AWS DevOps Agent (región us-east-1):"
+echo "     https://console.aws.amazon.com/devops-agent/"
+echo ""
+echo "  2. Click en 'Crear espacio de agente' / 'Create Agent Space'."
+echo ""
+echo "  3. Nombre: demo-devops-agent"
+echo ""
+echo "  4. Idioma de respuesta del agente / Agent response language:"
+echo "     'Spanish (Latin America)' para que responda en español."
+echo ""
+echo "  5. Acceso a los recursos de AWS / AWS resource access:"
+echo "     -> 'Creación automática de un nuevo rol' / 'Auto-create a new role'"
+echo ""
+echo "  6. Aplicación web / Web App:"
+echo "     -> 'Creación automática de un nuevo rol' / 'Auto-create a new role'"
+echo ""
+echo "  7. Acciones del agente / Agent actions: déjalo DESACTIVADO."
+echo "     Si lo activas, el agente puede hacer cambios en tu cuenta"
+echo "     (cada cambio requiere aprobación). Para este lab no hace falta."
+echo ""
+echo "  8. Click en 'Crear' / 'Create'."
+echo ""
+echo "  AWS creará automáticamente dos roles:"
+echo "     - DevOpsAgentRole-AgentSpace-xxxx   (rol de investigación)"
+echo "     - DevOpsAgentRole-WebappAdmin-xxxx   (rol de la Web App)"
+echo "  Sin 'Acciones del agente', el agente solo lee: investiga, no modifica nada."
+echo ""
+echo "  9. Para entrar a la Web App, usa el botón 'Iniciar a través de IAM'"
+echo "     ('Operator access' en inglés) en la página del Agent Space."
+echo ""
+echo "========================================="
+echo "  Verificación (opcional)"
+echo "========================================="
+echo ""
+echo "Cuando termines, puedes verificar que AWS creó los roles con:"
+echo ""
+echo "  aws iam list-roles --path-prefix /service-role/ \\"
+echo "    --query 'Roles[?contains(RoleName, \`DevOpsAgent\`)].RoleName' --output text"
+echo ""
+echo "➡️  Siguiente paso: ./scripts/02-deploy-test-app.sh"

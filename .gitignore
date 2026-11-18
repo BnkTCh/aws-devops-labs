@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Notas personales de preparación (no son parte del lab)
+lab2-devops-agent/GUIA-PASO-A-PASO.md
+
+# Plantilla obsoleta, se conserva solo localmente como referencia
+lab2-devops-agent/cloudformation/agent-space.yaml
+
+# Archivos locales que nunca deben subirse
+.env
+*.pem
+kubeconfig*
+
+# Labs en preparación (se publican cuando estén probados)
+lab3-finops-agent/
+lab4-observability-e2e/

@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  App de prueba para provocar incidentes que el DevOps Agent pueda investigar.
+  Incluye: Lambda con errores, alarma CloudWatch, topic SNS.
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email para recibir alertas de la alarma
+    Default: tu@email.com
+
+Resources:
+  # ============================================
+  # Lambda que simula errores intermitentes
+  # ============================================
+  ErrorSimulatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: error-simulator-demo
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 10
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import random
+          import time
+          import json
+
+          def handler(event, context):
+              """
+              Simula una Lambda con problemas intermitentes:
+              - 30% de probabilidad de error (Exception)
+              - 20% de probabilidad de timeout (sleep largo)
+              - 50% funciona correctamente
+              """
+              roll = random.random()
+
+              if roll < 0.3:
+                  # Simular error de aplicación
+                  raise Exception(
+                      f"DatabaseConnectionError: Cannot connect to RDS instance "
+                      f"db-prod-001. Connection pool exhausted. "
+                      f"Active connections: 100/100"
+                  )
+              elif roll < 0.5:
+                  # Simular latencia alta (casi timeout)
+                  time.sleep(8)
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'Success (but slow)',
+                          'latency_ms': 8000
+                      })
+                  }
+              else:
+                  # Funcionamiento normal
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'message': 'Success',
+                          'latency_ms': random.randint(50, 200)
+                      })
+                  }
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: error-simulator-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # ============================================
+  # SNS Topic para notificaciones
+  # ============================================
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: devops-agent-demo-alerts
+
+  AlertsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+  # ============================================
+  # CloudWatch Alarms
+  # ============================================
+
+  # Alarma de errores: se dispara cuando hay >= 5 errores en 1 minuto
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: error-simulator-high-errors
+      AlarmDescription: >
+        Alta tasa de errores en error-simulator-demo.
+        El DevOps Agent investigara automaticamente cuando se dispare.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ErrorSimulatorFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref AlertsTopic
+      TreatMissingData: notBreaching
+
+  # Alarma de duración: se dispara cuando la latencia promedio > 5 segundos
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: error-simulator-high-latency
+      AlarmDescription: >
+        Latencia alta en error-simulator-demo.
+        Indica posible timeout o degradacion del servicio.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ErrorSimulatorFunction
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref AlertsTopic
+      TreatMissingData: notBreaching
+
+  # Alarma de throttles
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: error-simulator-throttled
+      AlarmDescription: Lambda esta siendo throttleada - posible problema de concurrencia.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ErrorSimulatorFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Ref AlertsTopic
+      TreatMissingData: notBreaching
+
+Outputs:
+  FunctionName:
+    Description: Nombre de la Lambda
+    Value: !Ref ErrorSimulatorFunction
+
+  FunctionArn:
+    Description: ARN de la Lambda
+    Value: !GetAtt ErrorSimulatorFunction.Arn
+
+  SnsTopicArn:
+    Description: ARN del topic SNS
+    Value: !Ref AlertsTopic
+
+  ErrorAlarmName:
+    Description: Nombre de la alarma de errores
+    Value: !Ref LambdaErrorsAlarm
+
+  LatencyAlarmName:
+    Description: Nombre de la alarma de latencia
+    Value: !Ref LambdaDurationAlarm
