@@ -1,0 +1,72 @@
+# Pod que genera tráfico constante hacia la slow-api
+# Se puede escalar para aumentar la presión
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: demo-observability
+  labels:
+    app: traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traffic-generator
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+    spec:
+      containers:
+      - name: generator
+        image: curlimages/curl:8.7.1
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Traffic Generator started"
+          echo "Target: http://slow-api.demo-observability.svc.cluster.local"
+          echo ""
+          
+          COUNTER=0
+          while true; do
+            COUNTER=$((COUNTER + 1))
+            
+            # Mix de endpoints (simula tráfico real)
+            ROLL=$((RANDOM % 10))
+            
+            if [ $ROLL -lt 3 ]; then
+              # 30% - endpoint problemático
+              curl -s -o /dev/null -w "%{http_code} %{time_total}s /api/process\n" \
+                http://slow-api.demo-observability.svc.cluster.local/api/process
+            elif [ $ROLL -lt 5 ]; then
+              # 20% - endpoint pesado
+              curl -s -o /dev/null -w "%{http_code} %{time_total}s /api/heavy\n" \
+                http://slow-api.demo-observability.svc.cluster.local/api/heavy
+            elif [ $ROLL -lt 7 ]; then
+              # 20% - orders
+              curl -s -o /dev/null -w "%{http_code} %{time_total}s /api/order\n" \
+                -X POST -H "Content-Type: application/json" \
+                -d '{"item":"widget","qty":1}' \
+                http://slow-api.demo-observability.svc.cluster.local/api/order
+            else
+              # 30% - endpoint normal
+              curl -s -o /dev/null -w "%{http_code} %{time_total}s /api/data\n" \
+                http://slow-api.demo-observability.svc.cluster.local/api/data
+            fi
+            
+            # Log cada 50 requests
+            if [ $((COUNTER % 50)) -eq 0 ]; then
+              echo "--- $COUNTER requests sent ---"
+            fi
+            
+            # Pausa entre requests (0.5-2s)
+            sleep $(awk "BEGIN{print 0.5 + rand() * 1.5}")
+          done
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "32Mi"
+          limits:
+            cpu: "100m"
+            memory: "64Mi"

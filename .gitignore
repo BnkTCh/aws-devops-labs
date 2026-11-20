@@ -3,6 +3,7 @@
 
 # Notas personales de preparación (no son parte del lab)
 lab2-devops-agent/GUIA-PASO-A-PASO.md
+lab3-observability-e2e/GUIA-PASO-A-PASO.md
 
 # Plantilla obsoleta, se conserva solo localmente como referencia
 lab2-devops-agent/cloudformation/agent-space.yaml
@@ -13,5 +14,4 @@ lab2-devops-agent/cloudformation/agent-space.yaml
 kubeconfig*
 
 # Labs en preparación (se publican cuando estén probados)
-lab3-finops-agent/
-lab4-observability-e2e/
+lab4-finops-agent/

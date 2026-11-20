@@ -6,8 +6,8 @@ Labs prácticos de la serie **"AI-Powered DevOps en AWS"**. Cada lab acompaña u
 |---|---|---|
 | [Lab 1: EKS Auto Mode](lab1-eks-auto-mode/) | Un cluster de Kubernetes donde AWS gestiona los nodos por ti | 20-30 min |
 | [Lab 2: AWS DevOps Agent](lab2-devops-agent/) | Provocar un incidente y dejar que un agente de IA lo investigue | 30-45 min |
-| Lab 3: AWS FinOps Agent | Preguntarle a tu factura de AWS en lenguaje natural | Próximamente |
-| Lab 4: Observabilidad end-to-end | De una métrica en EKS a un incidente investigado por IA | Próximamente |
+| [Lab 3: Observabilidad end-to-end](lab3-observability-e2e/) | Alarmas, Container Insights y un agente de IA con acceso de lectura a Kubernetes | 45-60 min |
+| Lab 4: AWS FinOps Agent | Preguntarle a tu factura de AWS en lenguaje natural | Próximamente |
 
 ## Antes de empezar
 

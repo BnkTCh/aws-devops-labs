@@ -1,0 +1,85 @@
+# API con problemas intencionales de performance
+# - 30% de requests: latencia alta (3-8 segundos)
+# - 20% de requests: error 500
+# - Bajo cierta carga: OOMKilled (memory leak simulado)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slow-api
+  namespace: demo-observability
+  labels:
+    app: slow-api
+    environment: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: slow-api
+  template:
+    metadata:
+      labels:
+        app: slow-api
+        environment: demo
+    spec:
+      containers:
+      - name: api
+        image: python:3.12-slim
+        command:
+        - python
+        - /app/server.py
+        env:
+        # Sin esto, Python guarda los print() en un buffer y los logs de error
+        # tardan en llegar a CloudWatch (o no llegan antes de un reinicio)
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+      volumes:
+      - name: app-code
+        configMap:
+          name: slow-api-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slow-api
+  namespace: demo-observability
+  labels:
+    app: slow-api
+  annotations:
+    # Sin esto, EKS Auto Mode crea un NLB interno y el tráfico desde tu máquina no llega
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+spec:
+  type: LoadBalancer
+  loadBalancerClass: eks.amazonaws.com/nlb
+  selector:
+    app: slow-api
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
